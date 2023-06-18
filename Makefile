@@ -1,10 +1,10 @@
 all:
 	cd Tools/fcsync
-	make
+	make .
 	cd -
 	cd Driver
-	make
+	make .
 
 install:
 	cd Driver
-	sudo make install
+	sudo make . install
