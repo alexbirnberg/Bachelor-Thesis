@@ -3,5 +3,4 @@ all:
 	cd Driver; make
 
 install:
-	cd Driver
-	sudo make . install
+	cd Driver; sudo make install
