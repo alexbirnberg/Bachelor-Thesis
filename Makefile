@@ -1,9 +1,6 @@
 all:
-	cd Tools/fcsync
-	make .
-	cd -
-	cd Driver
-	make .
+	cd Tools/fcsync; make
+	cd ../Driver;	make
 
 install:
 	cd Driver
