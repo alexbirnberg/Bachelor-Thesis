@@ -594,7 +594,7 @@ struct filecache_read_req
 int bpf_filecache_read(struct filecache_read_req *req, char *buf, int buf__sz)
 {
   int ret = -1;
-  uint32_t read_sz = req->len < buf__sz ? req->len : buf__sz;
+  uint32_t read_sz = req->len < buf__sz ? req->len : buf__sz, flags = req->flags;
   struct filecache_entry *entry;
   struct filecache_content *content = NULL;
 
@@ -615,7 +615,7 @@ int bpf_filecache_read(struct filecache_read_req *req, char *buf, int buf__sz)
     printk(KERN_INFO "filecache: bpf_filecache_read: found content\n");
 #endif
 
-      if (req->flags & FILECACHE_FLAGS_DEL) {
+      if (flags & FILECACHE_FLAGS_DEL) {
         filecache_remove_content(content);
       }
       
