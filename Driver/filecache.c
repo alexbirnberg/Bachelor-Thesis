@@ -24,6 +24,7 @@ MODULE_AUTHOR("Alex Birnberg");
 MODULE_DESCRIPTION("Kernel module for in-kernel file caching");
 MODULE_VERSION("0.1");
 
+#define DEBUG                   0
 #define DEV_NAME                "filecache"
 #define FILECACHE_MAX_EXTENTS   100000
 #define FILECACHE_MAX_READ      0x10000000
@@ -491,7 +492,7 @@ end:
   return ret;
 }
 
-void filecache_queue_op_read(void *arg) 
+void filecache_queue_op_read(void *arg)
 {
   __u32 key, len, id;
   __u64 pos;
@@ -505,22 +506,39 @@ void filecache_queue_op_read(void *arg)
   id  = ((struct filecache_op_read *)arg)->id;
   kfree(arg);
 
+#if DEBUG
+    printk(KERN_INFO "filecache: filecache_queue_op_read: inserting %x\n", key);
+#endif
   if (filecache_find_entry(key, &entry) < 0) {
+#if DEBUG
+    printk(KERN_INFO "filecache: filecache_queue_op_read: failed to find entry\n");
+#endif
     goto out;
   }
   page = alloc_pages(GFP_KERNEL | __GFP_ZERO, get_order(len));
   if (page == NULL) {
+#if DEBUG
+    printk(KERN_INFO "filecache: filecache_queue_op_read: failed to alloc pages\n");
+#endif
     goto out_put_entry;
   }
 
   if (filecache_read(entry, page_address(page), len, key, pos, len) < 0) {
-    goto out_free_pages;  
-  }
-
-  if (filecache_new_content(id, page, len, &content) < 0) {
+#if DEBUG
+    printk(KERN_INFO "filecache: filecache_queue_op_read: failed to read data\n");
+#endif
     goto out_free_pages;
   }
 
+  if (filecache_new_content(id, page, len, &content) < 0) {
+#if DEBUG
+    printk(KERN_INFO "filecache: filecache_queue_op_read: failed to create new content\n");
+#endif
+    goto out_free_pages;
+  }
+#if DEBUG
+    printk(KERN_INFO "filecache: filecache_queue_op_read: new entry inserted successfully\n");
+#endif
   filecache_insert_content(entry, content);
 
   goto out_put_entry;
@@ -581,6 +599,10 @@ int bpf_filecache_read(struct filecache_read_req *req, char *buf, int buf__sz)
   struct filecache_content *content = NULL;
 
   if (filecache_find_entry(req->key, &entry) < 0) {
+#if DEBUG
+    printk(KERN_INFO "filecache: bpf_filecache_read: failed to find entry %x\n", req->key);
+#endif
+
     goto end;
   }
   rcu_read_lock();
@@ -589,6 +611,9 @@ int bpf_filecache_read(struct filecache_read_req *req, char *buf, int buf__sz)
       read_sz = req->pos + read_sz < content->size ? read_sz : content->size - req->pos;
       memcpy(buf, page_address(content->page) + req->pos, read_sz);
       ret = read_sz;
+#if DEBUG
+    printk(KERN_INFO "filecache: bpf_filecache_read: found content\n");
+#endif
 
       if (req->flags & FILECACHE_FLAGS_DEL) {
         filecache_remove_content(content);
@@ -599,6 +624,10 @@ int bpf_filecache_read(struct filecache_read_req *req, char *buf, int buf__sz)
   }
   rcu_read_unlock();
   filecache_put_entry(entry);
+
+#if DEBUG
+    printk(KERN_INFO "filecache: bpf_filecache_read: returning %x\n", ret);
+#endif
 end:
   return ret;
 }
